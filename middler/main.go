@@ -3,7 +3,6 @@ package middler
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"reflect"
 	"runtime"
