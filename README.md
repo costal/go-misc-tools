@@ -3,6 +3,6 @@ A collection of tools for solving various problems, or optimizing and improving 
 
 ## Middler
 
-middler is an experiment in http handling, with the hopes of progresesing into a multifaceted http.Handler manager.
+middler is an experiment in http handling, with the hopes of progressing into a multifaceted http.Handler manager.
 Currently considering whether or not to delve into the realm of multiplexing with this package. However, optimizing and perhaps retreading grounds for 
 creative solutions might be where I'll find most of my endeavors here. 
