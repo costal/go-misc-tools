@@ -16,7 +16,7 @@ const contextBranch = contextKey("currentBranch")
 type middlewoman struct {
 	name                   string
 	next                   string
-	handlerFunc            func(http.Handler) http.Handler
+	handlerFunc            Middleware
 	selfInducingHandler    http.Handler
 	selfInducedNextHandler http.Handler
 }
@@ -29,7 +29,12 @@ type middleman struct {
 	funcStore     *map[string]*middlewoman
 }
 
-func New(handlers ...func(http.Handler) http.Handler) middleman {
+type Middleware func(http.Handler) http.Handler
+
+func New(handlers ...Middleware) middleman {
+        if len(handlers) == 0 {
+		panic("must apply a Middleware")
+	}
 	m := newMiddleman(len(handlers), nil, nil, nil)
 	for i := 0; i < len(handlers); i++ {
 		m.sub[i] = newMiddlewoman(handlers[i])
@@ -41,7 +46,7 @@ func New(handlers ...func(http.Handler) http.Handler) middleman {
 	return m
 }
 
-func newMiddlewoman(handler func(http.Handler) http.Handler) middlewoman {
+func newMiddlewoman(handler Middleware) middlewoman {
 	return middlewoman{
 		name:        runtime.FuncForPC(reflect.ValueOf(handler).Pointer()).Name(),
 		handlerFunc: handler,
@@ -141,7 +146,7 @@ func (m middleman) fork() middleman {
 	return nm
 }
 
-func (m middleman) Add(handler func(http.Handler) http.Handler) middleman {
+func (m middleman) Add(handler Middleware) middleman {
 	nm := m.fork()
 	mw := newMiddlewoman(handler)
 	nm.serve(len(nm.sub)-1, &mw)
@@ -156,10 +161,9 @@ func (m middleman) Then(next http.Handler) http.Handler {
 	return nm.mainHandler()
 }
 
-func (m middleman) ThenFunc(next func(http.ResponseWriter, *http.Request)) http.Handler {
+func (m middleman) ThenFunc(next http.HandlerFunc) http.Handler {
 	nm := m.fork()
-	var handler http.Handler = http.HandlerFunc(next)
-	nm.sub[len(nm.sub)-1].selfInducedNextHandler = handler
+	nm.sub[len(nm.sub)-1].selfInducedNextHandler = next
 	return nm.mainHandler()
 }
 
