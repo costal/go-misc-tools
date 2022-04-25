@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"os"
 	"runtime/debug"
+
+	"github.com/costal/go-misc-tools/middler"
 )
 
 type Application struct {
@@ -27,10 +29,10 @@ func DefaultApp(name string, endpoints interface{}) *Application {
 			mux: http.NewServeMux(),
 		},
 	}
-	app.standardMiddleware = []func(http.Handler) http.Handler{
+	app.standardMiddleware = []middler.Middleware{
 		app.recoverPanic, app.logRequest,
 	}
-	app.DynamicMiddleware = []func(http.Handler) http.Handler{}
+	app.DynamicMiddleware = []middler.Middleware{}
 	return app
 }
 
@@ -46,7 +48,7 @@ func (app *Application) InfoLog() *log.Logger {
 	return app.infoLog
 }
 
-func (app *Application) AddStandardMiddleware(sm ...func(http.Handler) http.Handler) {
+func (app *Application) AddStandardMiddleware(sm ...middler.Middleware) {
 	if sm != nil {
 		app.standardMiddleware = append(app.standardMiddleware, sm...)
 	}

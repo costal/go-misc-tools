@@ -10,8 +10,8 @@ import (
 
 type HTTPHandlers struct {
 	AuthenticationFunc func()
-	DynamicMiddleware  []func(http.Handler) http.Handler
-	standardMiddleware []func(http.Handler) http.Handler
+	DynamicMiddleware  []middler.Middleware
+	standardMiddleware []middler.Middleware
 	mux                *http.ServeMux
 	httpMethods
 }
@@ -101,8 +101,6 @@ func (app *Application) Router() http.Handler {
 		if rm.method != nil {
 			if rm.middleware != nil {
 				for _, m := range rm.middleware {
-					// Functions may be reused. What reason does middler have not to
-					// take in the function pointer?
 					dynamicMiddleware = dynamicMiddleware.Add(m)
 				}
 				*method = dynamicMiddleware.ThenFunc(rm.method)
