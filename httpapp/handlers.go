@@ -111,7 +111,7 @@ func (app *Application) Router() http.Handler {
 	}
 
 	// Point for optimization
-	for _, urm := range app.methods {
+	for _, urm := range app.urmMethods {
 		rest := &restMethods{}
 		rvPtr := reflect.ValueOf(rest)
 		urv := reflect.ValueOf(urm)

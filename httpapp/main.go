@@ -27,6 +27,9 @@ func DefaultApp(name string, endpoints interface{}) *Application {
 		endpoints: endpoints,
 		HTTPHandlers: HTTPHandlers{
 			mux: http.NewServeMux(),
+			httpMethods: httpMethods{
+				urmMap: make(map[string]*uriRestMethods),
+			},
 		},
 	}
 	app.standardMiddleware = []middler.Middleware{

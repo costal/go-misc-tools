@@ -32,9 +32,6 @@ type middleman struct {
 type Middleware func(http.Handler) http.Handler
 
 func New(handlers ...Middleware) middleman {
-        if len(handlers) == 0 {
-		panic("must apply a Middleware")
-	}
 	m := newMiddleman(len(handlers), nil, nil, nil)
 	for i := 0; i < len(handlers); i++ {
 		m.sub[i] = newMiddlewoman(handlers[i])
@@ -166,4 +163,3 @@ func (m middleman) ThenFunc(next http.HandlerFunc) http.Handler {
 	nm.sub[len(nm.sub)-1].selfInducedNextHandler = next
 	return nm.mainHandler()
 }
-

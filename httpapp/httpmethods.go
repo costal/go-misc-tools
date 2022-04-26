@@ -28,27 +28,56 @@ type methods struct {
 }
 
 type httpMethods struct {
-	methods      []*uriRestMethods
-	mapToMethods map[string]*uriRestMethods
+	urmMethods []*uriRestMethods
+	urmMap     map[string]*uriRestMethods
 }
 
-func (h *httpMethods) URL(url string, method ...*methods) *uriRestMethods {
-	urm, ok := h.mapToMethods[url]
+type containerMethod func(...middler.Middleware) interface{}
+
+func flattenContainers(cms []containerMethod) (ms []*methods) {
+	ms = make([]*methods, len(cms))
+	var wg sync.WaitGroup
+	for i, val := range cms {
+		wg.Add(1)
+		go func(i int, cm containerMethod) {
+			defer wg.Done()
+			if m, ok := cm(nil).(*methods); ok {
+				ms[i] = m
+			} else {
+				m := cm(nil).(containerMethod)
+				for mi, ok := m(nil).(containerMethod); ok; {
+					mi, ok = mi(nil).(containerMethod)
+					if !ok {
+						ms[i] = mi(nil).(*methods)
+					}
+				}
+			}
+		}(i, val)
+	}
+	wg.Wait()
+	return
+}
+
+func (h *httpMethods) URL(url string, method ...containerMethod) *uriRestMethods {
+	urm, ok := h.urmMap[url]
 	if !ok {
 		urm = &uriRestMethods{uri: url}
 		urm.methods = []*methods{&urm.Post, &urm.Get, &urm.Put, &urm.Patch, &urm.Delete}
-		h.mapToMethods[url] = urm
-		h.methods = append(h.methods, urm)
+		h.urmMap[url] = urm
+		h.urmMethods = append(h.urmMethods, urm)
 	}
 	currentURM = urm
-	return urm.Method(method...)
+	return urm.Method(flattenContainers(method)...)
 }
 
 func (urm *uriRestMethods) Method(method ...*methods) *uriRestMethods {
 	// Point for optimization
 	for len(method) != 0 {
 		for _, val := range currentURM.methods {
-			if val.methodName == method[0].methodName {
+			// Proceed based on currentURM methods in order to erase
+			// unnecessary middlewares - hence, even if len(method) = 0
+			// continue
+			if len(method) != 0 && val.methodName == method[0].methodName {
 				val.method = method[0].method
 				val.middleware = method[0].middleware
 				method = method[1:]
@@ -60,13 +89,23 @@ func (urm *uriRestMethods) Method(method ...*methods) *uriRestMethods {
 	return urm
 }
 
+func (c containerMethod) Middleware(middleware ...middler.Middleware) containerMethod {
+	return func(m ...middler.Middleware) containerMethod {
+		return func(m ...middler.Middleware) interface{} {
+			m = append(middleware, m...)
+			return c(m...)
+		}
+	}(middleware...)
+}
+
 func (urm *uriRestMethods) Middleware(middleware ...middler.Middleware) *uriRestMethods {
-	var funcs []func(wg sync.WaitGroup)
+	var funcs []func(wg *sync.WaitGroup)
 	// Point for optimization
 	for _, val := range urm.methods {
+		// Add to specific methods or add to all of them
 		if urm.methodsSet {
 			if val.methodName != "" {
-				funcs = append(funcs, func(wg sync.WaitGroup) {
+				funcs = append(funcs, func(wg *sync.WaitGroup) {
 					defer wg.Done()
 					val.middleware = append(val.middleware, middleware...)
 				})
@@ -74,7 +113,7 @@ func (urm *uriRestMethods) Middleware(middleware ...middler.Middleware) *uriRest
 				val.middleware = nil
 			}
 		} else {
-			funcs = append(funcs, func(wg sync.WaitGroup) {
+			funcs = append(funcs, func(wg *sync.WaitGroup) {
 				defer wg.Done()
 				val.middleware = append(val.middleware, middleware...)
 			})
@@ -84,10 +123,16 @@ func (urm *uriRestMethods) Middleware(middleware ...middler.Middleware) *uriRest
 	var wg sync.WaitGroup
 	for _, val := range funcs {
 		wg.Add(1)
-		go val(wg)
+		go val(&wg)
 	}
 	wg.Wait()
 	return urm
+}
+
+type httpMethodRoute struct{}
+
+func GetHTTPMethods() httpMethodRoute {
+	return httpMethodRoute{}
 }
 
 func createHTTPMethod(name string, handler http.HandlerFunc) *methods {
@@ -114,30 +159,32 @@ func createHTTPMethod(name string, handler http.HandlerFunc) *methods {
 	return m
 }
 
-type httpMethodRoute struct{}
-
-func GetHTTPMethods() httpMethodRoute {
-	return httpMethodRoute{}
+func httpMethodContainerGenerator(method string, handler http.HandlerFunc) containerMethod {
+	return func(m ...middler.Middleware) interface{} {
+		return func(...middler.Middleware) *methods {
+			return createHTTPMethod(method, handler)
+		}(m...)
+	}
 }
 
-func (h httpMethodRoute) Post(handler http.HandlerFunc) *methods {
-	return createHTTPMethod("POST", handler)
+func (h httpMethodRoute) Post(handler http.HandlerFunc) containerMethod {
+	return httpMethodContainerGenerator("POST", handler)
 }
 
-func (h httpMethodRoute) Get(handler http.HandlerFunc) *methods {
-	return createHTTPMethod("GET", handler)
+func (h httpMethodRoute) Get(handler http.HandlerFunc) containerMethod {
+	return httpMethodContainerGenerator("GET", handler)
 }
 
-func (h httpMethodRoute) Put(handler http.HandlerFunc) *methods {
-	return createHTTPMethod("PUT", handler)
+func (h httpMethodRoute) Put(handler http.HandlerFunc) containerMethod {
+	return httpMethodContainerGenerator("PUT", handler)
 }
 
-func (h httpMethodRoute) Patch(handler http.HandlerFunc) *methods {
-	return createHTTPMethod("PATCH", handler)
+func (h httpMethodRoute) Patch(handler http.HandlerFunc) containerMethod {
+	return httpMethodContainerGenerator("PATCH", handler)
 }
 
-func (h httpMethodRoute) Delete(handler http.HandlerFunc) *methods {
-	return createHTTPMethod("DELETE", handler)
+func (h httpMethodRoute) Delete(handler http.HandlerFunc) containerMethod {
+	return httpMethodContainerGenerator("DELETE", handler)
 }
 
 func (m *methods) Middleware(middleware ...middler.Middleware) *methods {
