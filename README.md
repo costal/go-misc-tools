@@ -7,4 +7,4 @@ A dynamic middleware manager.
 
 ## HTTPApp (v0.0.0)
 
-An API framework for HTTP/S and basic auth.
+An API framework for HTTP/S and basic auth..
