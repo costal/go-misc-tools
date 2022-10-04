@@ -1,3 +1,3 @@
-module github.com/costal/go-misc-tools/middler/v0.1.0
+module github.com/costal/go-misc-tools/middler
 
 go 1.18

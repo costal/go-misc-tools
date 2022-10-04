@@ -1,3 +1,5 @@
+github.com/costal/go-misc-tools/httpapp v0.0.0-20220426072408-693aee9fb114 h1:rtHiYpk/UMVY2hHaxPgxW5AKyCx0ehFvHa/2BUqCrB0=
+github.com/costal/go-misc-tools/httpapp v0.0.0-20220426072408-693aee9fb114/go.mod h1:SSfwRIHISnQXgChofjzkoRtPG6mge2WiV7SugLY648I=
 github.com/costal/go-misc-tools/middler v0.0.0-20220426072408-693aee9fb114 h1:zvQy4dOUasKG3Rgi1mUvmpsyatqPZEgvMzG4zhHl1Wg=
 github.com/costal/go-misc-tools/middler v0.0.0-20220426072408-693aee9fb114/go.mod h1:Y9tCtfDHOZjLlN8rR1Y578J9TEiKHNE/37GmM4PxQmA=
 github.com/rs/cors v1.8.2 h1:KCooALfAYGs415Cwu5ABvv9n9509fSiG5SQJn/AQo4U=
