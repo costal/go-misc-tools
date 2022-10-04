@@ -31,8 +31,8 @@ type middleman struct {
 
 type Middleware func(http.Handler) http.Handler
 
-func New(handlers ...Middleware) middleman {
-	m := newMiddleman(len(handlers), nil, nil, nil)
+func New(handlers ...Middleware) (m middleman) {
+	m = newMiddleman(len(handlers), nil, nil, nil)
 	for i := 0; i < len(handlers); i++ {
 		m.sub[i] = newMiddlewoman(handlers[i])
 		m.selfInduce(i)
@@ -44,6 +44,9 @@ func New(handlers ...Middleware) middleman {
 }
 
 func newMiddlewoman(handler Middleware) middlewoman {
+	if handler == nil {
+		return middlewoman{}
+	}
 	return middlewoman{
 		name:        runtime.FuncForPC(reflect.ValueOf(handler).Pointer()).Name(),
 		handlerFunc: handler,
@@ -144,6 +147,9 @@ func (m middleman) fork() middleman {
 }
 
 func (m middleman) Add(handler Middleware) middleman {
+	if len(m.sub) == 0 {
+		return New(handler)
+	}
 	nm := m.fork()
 	mw := newMiddlewoman(handler)
 	nm.serve(len(nm.sub)-1, &mw)
@@ -154,12 +160,18 @@ func (m middleman) Add(handler Middleware) middleman {
 
 func (m middleman) Then(next http.Handler) http.Handler {
 	nm := m.fork()
-	nm.sub[len(nm.sub)-1].selfInducedNextHandler = next
+	if len(nm.sub) == 1 {
+		nm = nm.Add(nil)
+		nm = nm.fork()
+		nm.sub[len(nm.sub)-1].selfInducedNextHandler = next
+	} else {
+		mw := newMiddlewoman(nil)
+		mw.selfInducingHandler = next
+		nm.serve(len(nm.sub)-1, &mw)
+	}
 	return nm.mainHandler()
 }
 
 func (m middleman) ThenFunc(next http.HandlerFunc) http.Handler {
-	nm := m.fork()
-	nm.sub[len(nm.sub)-1].selfInducedNextHandler = next
-	return nm.mainHandler()
+	return m.Then(next)
 }
